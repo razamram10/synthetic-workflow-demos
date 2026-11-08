@@ -1,11 +1,7 @@
-# Synthetic workflow demos
+# Polyben automation and web portfolio
 
-Three standalone Hebrew portfolio examples. Every business identity, metric, budget and campaign in these examples is fictional. The figures illustrate how each report supports a decision and do not represent measured client results.
+I built Facebook and LinkedIn reporting agents for Polyben. These examples preserve the actual report layouts and use substituted names, dates and activity metrics for privacy.
 
-| Example | HTML file | What to look for |
-|---|---|---|
-| Facebook reporting agent | [Open report](facebook.html) | Compare spend and cost per inquiry before proposing a test. |
-| LinkedIn reporting agent | [Open report](linkedin.html) | Turn engagement data into an editorial decision and a draft post. |
-| Bilingual company website | [Open sample site](website.html) | Follow a visitor from a service description to a sample project brief. |
-
-Download any HTML file and open it in a browser to view it offline. The examples are static outputs, with no connections to live accounts.
+- [View the Facebook report](https://htmlpreview.github.io/?https://github.com/razamram10/synthetic-workflow-demos/blob/main/facebook.html) — campaign performance, lead follow-up and scheduled posts.
+- [View the LinkedIn report](https://htmlpreview.github.io/?https://github.com/razamram10/synthetic-workflow-demos/blob/main/linkedin.html) — publishing checks, connection requests and a suggested reply.
+- [Visit the original Polyben website](https://www.polyben.com/) — the bilingual manufacturing website I built using Claude and selected connectors and deployed on Hostinger.
