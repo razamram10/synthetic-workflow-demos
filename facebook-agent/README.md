@@ -19,6 +19,6 @@ Open facebook-agent/sample.html in your browser. Edit the urgent finding in [sam
 
 The browser-check rule in the operational WORKFLOW.md reads:
 
-> לא זמין / לא מחובר → "סריקה לא בוצעה — סיבה" ולהמשיך.
+> לא זמין / לא מחובר < "סריקה לא בוצעה < סיבה" ולהמשיך.
 
 If the ad metrics are available but the inbox cannot be opened, the agent can still report campaign performance. It records the reason for the missing inbox check and leaves the message count unknown. In the sample, the ad table is populated and the coverage section explicitly records the unavailable connection. This distinction lets the reader decide whether someone needs to check messages manually.
