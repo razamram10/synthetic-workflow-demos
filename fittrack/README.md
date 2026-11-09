@@ -23,6 +23,10 @@ flowchart LR
 
 The app sends a question to n8n, which retrieves workout records from Supabase. The preparation step filters completed workouts and computes per-exercise records. For supported maximum-weight questions that name an exact exercise, the response step uses the calculated values directly.
 
+![n8n execution path](assets/workflow-execution.jpg)
+
+Execution path: Webhook → Prepare Request → Supabase Workouts → Prepare AI Input → Coach AI Brain → Build Response. Service URLs and account identifiers are outside the screenshot.
+
 ![Workout history in the app](assets/workout-history.png)
 
 ![Question and final answer in the app](assets/question-answer.jpg)
@@ -30,6 +34,10 @@ The app sends a question to n8n, which retrieves workout records from Supabase. 
 In the reviewed example, the highest working-set weight for machine chest press was **60 kg** on **25 April 2026**. The maximum in the latest completed session was **37.5 kg** on **20 May 2026**. The latest session contained sets at 35, 37.5 and 37.5 kg; the History row showed 35, so the underlying sets were checked rather than treating that row as the session maximum. Dates use Asia/Jerusalem.
 
 An earlier AI answer included an unfinished workout and later confused exercises. Prompt changes alone did not reliably solve the numerical errors. The supported maximum-weight response now comes from code, with clarification requested for the tested ambiguous follow-up wording. Other free-form answers have not been comprehensively validated.
+
+![Final response in n8n](assets/final-response.jpg)
+
+The final response uses the calculated maximum. The AI intermediate output on the left still shows 35 kg; the final output on the right correctly returns 37.5 kg. The weekly CSV tool was not called in this run.
 
 ## Workflow reference and limitations
 
