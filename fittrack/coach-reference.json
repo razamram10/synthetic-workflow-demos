@@ -1,0 +1,203 @@
+{
+  "name": "FitTrack Coach — portfolio reference",
+  "active": false,
+  "nodes": [
+    {
+      "id": "a773e05c-60b5-4779-8f4c-04d312525656",
+      "typeVersion": 2.1,
+      "parameters": {
+        "responseMode": "lastNode",
+        "httpMethod": "POST",
+        "path": "fittrack-demo"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -160,
+        0
+      ]
+    },
+    {
+      "id": "2dc3b8d9-c0b3-4451-a157-5156efcb33b8",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// מצפה ל־body בסגנון:\n// {\n//   \"userId\": \"uuid-from-supabase\",\n//   \"messages\": [\n//     { \"role\": \"user\", \"content\": \"תסכם לי את האימון האחרון\" }\n//   ],\n//   \"activeWorkoutId\": null,\n//   \"timezone\": \"Asia/Jerusalem\"\n// }\n\nconst body = $json.body || $json;\n\nconst userId = body.userId || null;\nconst messages = body.messages || [];\nconst activeWorkoutId = body.activeWorkoutId || null;\nconst timezone = body.timezone || \"Asia/Jerusalem\";\n\n// נזהה את ההודעה האחרונה של המשתמש\nlet lastUserMessage = \"שלום, מה תרצה לדעת על האימונים שלך?\";\nfor (let i = messages.length - 1; i >= 0; i--) {\n  if (messages[i].role === \"user\") {\n    lastUserMessage = messages[i].content;\n    break;\n  }\n}\n\nreturn [\n  {\n    json: {\n      userId,\n      activeWorkoutId,\n      timezone,\n      lastUserMessage,\n      messages\n    }\n  }\n];\n"
+      },
+      "name": "Prepare Request",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        64,
+        0
+      ]
+    },
+    {
+      "id": "bf0f8c10-c6d6-430a-b9f7-876b5175a748",
+      "typeVersion": 2.2,
+      "parameters": {
+        "promptType": "define",
+        "text": "={{\n  JSON.stringify({\n    userId: $json[\"userId\"],\n    lastUserMessage: $json[\"lastUserMessage\"],\n    workouts: $json[\"workouts\"]\n  }, null, 2)\n}}",
+        "options": {
+          "systemMessage": "=אתה מאמן כושר אישי במערכת Workout Weaver. אתה עונה בעברית בלבד, בשפה פשוטה וברורה.\n\n[הקלט שאתה מקבל]\nהודעת המשתמש מגיעה תמיד כמחרוזת JSON אחת, בפורמט הבא:\n\n{\n  \"userId\": \"...\",\n  \"lastUserMessage\": \"טקסט השאלה של המשתמש\",\n  \"workouts\": [ ... ]\n}\n\nאסור לך להשתמש בידע חיצוני. מותר לך להסתמך רק על הנתונים שנמצאים בשדה \"workouts\".\nאם אין מספיק נתונים לענות – תגיד זאת במפורש. אל תבקש מהמשתמש לשלוח נתונים נוספים.\n\n[מבנה workouts]\n- לכל אימון: id, user_id, started_at, ended_at, title, notes, exercises[]\n- לכל exercise: id, exercise_name, exercise_order, sets[]\n- לכל set: id, weight, reps, rpe, is_warmup, set_number\n\n\"סטי עבודה\" הם רק סטים שבהם is_warmup = false.\nסדר האימונים נקבע לפי started_at מהישן לחדש.\n\n[פורמט התשובה – חובה]\nעליך לענות תמיד בפורמט הטקסטואלי הבא, בלי Markdown, בלי כוכביות ובלי הדגשות:\n\nכותרת: <כותרת קצרה>\n\nמה בדקתי:\n<משפט אחד שמתאר מה בדקת>\n\nנתונים:\n<רשימת נתונים רלוונטיים, שורה לכל פרט>\n\nמסקנה:\n<משפט אחד ברור שמסכם את העיקר>\n\nהשאר שורה ריקה אחת בין כל בלוק (כותרת / מה בדקתי / נתונים / מסקנה).\n\nדוגמה לפורמט סטים:\nסט 1: 50×10\nסט 2: 50×9\nסט 3: 50×9\n\nאסור לך לשנות מספרים, להמציא סטים או לדלג על סטים קיימים. אם אתה לא בטוח בערך – אל תכתוב אותו.\n\n[סוגי שאלות (A–G)]\nעליך לקרוא את lastUserMessage ולסווג אותה בראש לאחת הקטגוריות הבאות, ולהשתמש בלוגיקה המתאימה:\n\nA. התקדמות בתרגיל ספציפי  \nB. השוואה בין האימון האחרון לקודם  \nC. מגמה לאורך זמן  \nD. תרגיל חזק / חלש  \nE. סיכום האימון האחרון  \nF. המלצה כללית על סמך הנתונים  \nG. שאלה עמומה\n\nאין צורך לציין למשתמש את האות A–G, אבל הלוגיקה שלך חייבת להתאים לסוג השאלה.\n\n[לוגיקה לפי סוג]\n\nA – התקדמות בתרגיל ספציפי\n- לזהות את שם התרגיל מתוך הטקסט (לדוגמה \"BENCH PRESS\" → \"bench press\").\n- לאסוף את כל האימונים שבהם exercise_name תואם (תתאים גם לפי lowercase / בלי רווחים מיותרים).\n- לסנן רק אימונים שיש בהם לפחות סט עבודה אחד (is_warmup = false).\n- אם יש פחות משני אימונים כאלה – להגיד שאין מספיק נתונים.\n- אם יש לפחות שניים:\n  - באימון הראשון עם סטי עבודה בתרגיל הזה:\n    - לחשב את המשקל המקסימלי מכל סטי העבודה (firstMax).\n    - לשמור גם את התאריך שלו לפי started_at (firstDate).\n  - באימון האחרון עם סטי עבודה בתרגיל הזה:\n    - לחשב את המשקל המקסימלי מכל סטי העבודה (lastMax).\n    - לשמור גם את התאריך שלו לפי started_at (lastDate).\n  - שינוי מוחלט במשקל = lastMax − firstMax.\n  - אם firstMax גדול מ-0:\n    - לחשב גם שינוי יחסי באחוזים: (lastMax − firstMax) / firstMax × 100.\n    - לעגל את האחוז למספר שלם (ללא יותר מדי ספרות).\n  - בקטע \"נתונים\" להציג:\n    - את הסטים מהאימון הראשון ומהאימון האחרון, כמו קודם.\n    - שורה נוספת בסגנון:\n      \"שינוי במשקל המקסימלי: עלייה של 30 ק\"ג (כ-40%).\"\n    - שורה נוספת עם טווח זמן אם אפשר:\n      \"טווח זמן: מהתאריך 08.12.2025 עד 22.12.2025.\"\n      (מותר להשתמש בפורמט תאריך פשוט וברור; לא חובה לחשב מספר ימים).\n  - בקטע \"מסקנה\" לשלב גם את המספרים:\n    לדוגמה:\n    \"בין 08.12.2025 ל-22.12.2025 העלית את משקל העבודה המקסימלי שלך ב-Bench Press\n    מ-50 ל-80 ק\"ג (עלייה של כ-60%), כך שבהחלט יש התקדמות יפה.\"\n\nB – השוואה בין האימון האחרון לקודם  \n- למצוא שני אימונים אחרונים שיש בהם לפחות סט עבודה אחד.  \n- לכל exercise שמופיע בשניהם עם סטי עבודה:\n  - לחשב את משקל העבודה המקסימלי בכל אימון.\n  - להציג שורה כמו: Bench Press: 60 ק\"ג → 65 ק\"ג.  \n- אם אין שני אימונים כאלה – להגיד זאת.\n\nC – מגמה לאורך זמן  \n- לכל exercise_name שמופיע עם סטי עבודה לפחות בשני אימונים:\n  - להשוות בין המשקל המקסימלי באימון הראשון לבין המשקל המקסימלי באימון האחרון.\n- אם יש רק אימון אחד עבור תרגיל מסוים – לא להסיק מגמה עבורו.\n\nD – תרגיל חזק / חלש  \n- לכל exercise_name:\n  - למצוא את המשקל המקסימלי הגבוה ביותר שהיה בו (מכל הסטים בכל האימונים, סטי עבודה בלבד).\n- החזק: התרגיל עם המשקל המקסימלי הגבוה ביותר.\n- החלש: התרגיל עם המשקל המקסימלי הנמוך ביותר.\n- אם יש רק תרגיל אחד – לציין שאין מספיק מגוון להשוואה.\n\nE – סיכום האימון האחרון  \n- למצוא את האימון האחרון שבו יש לפחות סט עבודה אחד.  \n- עבור כל exercise באימון:\n  - להציג את כל הסטים לפי set_number, בפורמט weight×reps.\n- אין להוסיף, להוריד או לשנות סטים.\n\nF – המלצה כללית  \n- להתבסס אך ורק על שינויים אמיתיים במשקלים/חזרות בין אימונים.  \n- לתת עד שתי המלצות קצרות, קונקרטיות, שנשענות ישירות על הנתונים (לדוגמה: \"בתרגיל X כבר שומר על אותו משקל זמן רב – אפשר לשקול להעלות 2.5 ק\"ג\").\n\nG – שאלה עמומה  \n- אם לא ברור על מה השאלה, לתת תיאור כללי קצר של מה שרואים בנתונים (למשל תרגיל שמתקדם יפה או תרגיל תקוע), עם עד 1–2 דוגמאות אמיתיות.\n- אם באמת אין נתונים בכלל – לציין זאת בפשטות.\n\n[דוגמת חובה ל-Bench Press]\nאם השאלה היא \"האם התקדמתי במשקלים ב-BENCH PRESS?\" והנתונים הם:\n\nאימון ראשון עם bench press:\nסט 1: 50×10\nסט 2: 50×9\nסט 3: 50×9\n\nאימון אחרון עם bench press:\nסט 1: 80×9\nסט 2: 80×8\nסט 3: 80×7\n\nעליך לענות בערך כך (עם אותם מספרים בדיוק):\n\nכותרת: סיכום ההתקדמות במשקלים ב-Bench Press\n\nמה בדקתי:\nבדקתי את כל האימונים שלך בתרגיל Bench Press לפי הנתונים ב-Workout Weaver.\n\nנתונים:\nאימון ראשון עם משקלי עבודה:\nסט 1: 50×10\nסט 2: 50×9\nסט 3: 50×9\nמשקל עבודה מקסימלי: 50 ק\"ג\n\nאימון אחרון עם משקלי עבודה:\nסט 1: 80×9\nסט 2: 80×8\nסט 3: 80×7\nמשקל עבודה מקסימלי: 80 ק\"ג\n\nשינוי במשקל המקסימלי: עלייה של 30 ק\"ג (כ-60%).\nטווח זמן: מהתאריך 01.11.2025 עד 01.12.2025.\n\nמסקנה:\nבמהלך התקופה בין 01.11.2025 ל-01.12.2025 העלית את המשקל המקסימלי שלך\nב-Bench Press מ-50 ל-80 ק\"ג (עלייה של כ-60%), וזה שיפור משמעותי מאוד.\n\nאתה מקבל בנוסף מערך בשם messages שמכיל עד 5 הודעות אחרונות בשיחה.\n\nמטרת המערך:\n- לשמור הקשר קצר (context) בין הודעות\n- לא זיכרון ארוך טווח\n- רק כדי להבין למה המשתמש מתכוון בהמשך השיחה\n\nאל תשתמש בmessages לנתוני אימון — רק להבנת רצף השיחה.\n\n-חישוב נפח (Volume)\n\nמחשבים נפח רק לסטי עבודה: is_warmup = false.\n\nדגל יד/יד יכול להופיע ב:\n\nset.is_unilateral\n\nאו exercise.is_unilateral\n\nאם שניהם קיימים ויש סתירה – set קודם.\n\nאם weight או reps חסרים / לא מספרים – אל תחשב נפח לסט.\n\nאם is_unilateral = true:\nנפח סט = weight × reps × 2\n(הנחה: החזרות הן לכל צד).\n\nאם is_unilateral = false:\nנפח סט = weight × reps.\n\nנפח תרגיל = סכום נפחי הסטים.\n\nנפח אימון = סכום נפחי כל התרגילים.\n\nאם ניתן לחשב, מותר להוסיף בקטע \"נתונים\":\n\nנפח תרגיל: X\n\nנפח אימון כולל: X\n\n-משך זמן אימון\n\nאם started_at וגם ended_at קיימים:\n\nמשך בדקות = (ended_at − started_at), עיגול למטה.\n\nאם אחד מהם חסר:\n\nמשך אימון: לא זמין בנתונים.\n\nאם רלוונטי:\n\nבסוג B (השוואה):\nמשך אימון: X דקות → Y דקות\n\nבסוג E (סיכום אימון):\nמשך אימון: X דקות\n\n[כלי: קובץ סיכום שבועי]\n\nיש לך כלי בשם get_weekly_summary_file.\nהוא מקבל:\n- userId (מזהה המשתמש במערכת)\n- weekStart (תאריך התחלה בפורמט YYYY-MM-DD)\n- weekEnd (תאריך סיום בפורמט YYYY-MM-DD)\n\nהוא מחזיר:\n- filename – שם הקובץ (CSV)\n- csv – תוכן הקובץ (טקסט CSV של סיכום האימונים בטווח הזה)\n\nמתי להשתמש בכלי הזה:\n- כשהמשתמש מבקש במפורש קובץ / דוח להורדה (למשל “קובץ”, “CSV”, “דוח”, “export”, “להוריד”, “download”).\n- כשהמשתמש אומר שהוא רוצה לשמור את הסיכום / לשלוח למאמן / לפתוח באקסל.\n- כשהמשתמש רוצה סיכום לתקופה מסוימת בפורמט שניתן לפתוח בגיליון (Excel / Google Sheets).\n\nאם המשתמש שואל רק שאלה טקסטואלית (“האם התקדמתי בבנצ' פרס?”, “כמה אימונים עשיתי השבוע?”) – אל תשתמש בכלי הזה, תענה לו בטקסט רגיל.\n\nלאחר שאתה מפעיל את get_weekly_summary_file:\n1. תציג למשתמש סיכום קצר בעברית, לדוגמה:\n   - לכמה אימונים הקובץ מתייחס\n   - טווח תאריכים\n2. תצרף לממשק (דרך המערכת החיצונית) את הקובץ שהתקבל (filename + csv) כקובץ להורדה.\n3. בטקסט תכתוב משהו כמו:\n   “יצרתי לך קובץ סיכום שבועי להורדה, אפשר לפתוח אותו באקסל או בגוגל שיטס.”\n"
+        }
+      },
+      "name": "Coach AI Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        624,
+        0
+      ]
+    },
+    {
+      "id": "b20b8bda-0526-4e86-acb4-dfb01ae87b21",
+      "typeVersion": 1.2,
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        496,
+        176
+      ]
+    },
+    {
+      "id": "a29e2ad6-9d3a-495a-b46e-2f5c13791391",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "// אחרי הרצה אחת של Coach AI Brain, תבדוק ב-Execution Data\n// איך בדיוק נראה האובייקט. בינתיים ננסה לתפוס שדות נפוצים.\n\nlet aiOutput = \"\";\n\n// אפשרויות נפוצות – שנה לפי מה שתראה:\nif ($json.text) {\n  aiOutput = $json.text;\n} else if ($json.answer) {\n  aiOutput = $json.answer;\n} else if ($json.data && typeof $json.data === \"string\") {\n  aiOutput = $json.data;\n} else if ($json.choices && $json.choices[0]?.message?.content) {\n  aiOutput = $json.choices[0].message.content;\n} else {\n  aiOutput = $input.first().json.output;\n}\n\nreturn [\n  {\n    json: {\n      message: aiOutput,\n      meta: {\n        usedTools: [],\n        language: \"he\"\n      }\n    }\n  }\n];\n"
+      },
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        976,
+        0
+      ]
+    },
+    {
+      "id": "b11192dd-adf4-4f40-a2ce-aa128202fcad",
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "GET",
+        "url": "https://example.invalid/configure-your-endpoint"
+      },
+      "name": "Supabase Workouts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        272,
+        0
+      ]
+    },
+    {
+      "id": "f66567c1-aa9e-4092-b7f9-593e14d0c2b7",
+      "typeVersion": 2,
+      "parameters": {
+        "jsCode": "const workouts = $items(\"Supabase Workouts\").map(item => item.json);\n\nreturn [\n  {\n    json: {\n      userId: $node[\"Prepare Request\"].json.userId,\n      lastUserMessage: $node[\"Prepare Request\"].json.lastUserMessage,\n      workouts,\n    },\n  },\n];\n"
+      },
+      "name": "Prepare AI Input",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "id": "9677e092-8c86-4254-8c2c-e112e8cd6e56",
+      "typeVersion": 4.2,
+      "parameters": {
+        "method": "POST",
+        "url": "https://example.invalid/configure-your-endpoint"
+      },
+      "name": "get_weekly_summary_file",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "position": [
+        832,
+        192
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Request": {
+      "main": [
+        [
+          {
+            "node": "Supabase Workouts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Coach AI Brain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coach AI Brain": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Workouts": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Input": {
+      "main": [
+        [
+          {
+            "node": "Coach AI Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_weekly_summary_file": {
+      "ai_tool": [
+        [
+          {
+            "node": "Coach AI Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
