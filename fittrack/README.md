@@ -1,51 +1,40 @@
-# FitTrack — Workout data and AI integration
+# FitTrack — Workout tracking and AI integration
 
-I built FitTrack using Lovable for the interface, Supabase for workout storage and n8n for the AI workflow. Users can log workouts and ask free-form questions in Hebrew about the workout data they entered, including recorded weights, sets, reps, progress and workout summaries. Answers depend on the available records and the implemented reasoning.
-
-This portfolio documents a project that previously ran on a VPS. Running it again requires an n8n server, configured service connections and valid API keys.
+I built a workout-tracking web app with Lovable, Supabase and n8n. Users log workouts and ask questions in Hebrew about their recorded training data. This case study focuses on connecting the interface, database, webhook and AI workflow.
 
 ## My contribution
 
-I chose and connected the services, defined how workout data reaches the assistant and iterated on the instructions using AI development tools. The prompt specifies how to treat warm-up sets, missing values, unilateral exercises and workout duration.
+I selected and connected the services, defined how workout records reach the assistant, and iterated using AI development tools. During portfolio review, I used AI assistance to investigate incorrect answers and add code-based calculations for supported maximum-weight questions.
 
-## How a question travels through the system
+## Integration flow
 
 ```mermaid
 flowchart LR
-    A[Lovable interface] --> B[Webhook]
-    B --> C[Prepare Request]
-    C --> D[Supabase Workouts]
-    D --> E[Prepare AI Input]
-    E --> F[Coach AI Brain]
-    M[OpenAI Chat Model] --> F
-    F --> G[Build Response]
-    G --> A
-    W[Weekly CSV tool] -.configured tool connection.-> F
+    A[Lovable app] --> B[Webhook / Prepare Request]
+    B --> C[Supabase workouts]
+    C --> D[Prepare AI Input: filter and calculate]
+    D --> E[Coach AI Brain / OpenAI]
+    E --> F[Build Response]
+    F --> A
+    W[Weekly CSV tool] -.configured; not used in this example.-> E
 ```
 
-[Inspect the sanitized original coach workflow](coach-reference.json). Node names and connections are preserved. Credential references were removed and service endpoints replaced. Importing this reference requires configuring the HTTP requests and credentials before use.
+## Demonstration
 
-The separate weekly export workflow retrieves workouts, filters a date range, builds rows and returns CSV. It is documented as an additional component whose integration still needs testing.
+The app sends a question to n8n, which retrieves workout records from Supabase. The preparation step filters completed workouts and computes per-exercise records. For supported maximum-weight questions that name an exact exercise, the response step uses the calculated values directly.
 
-## Evidence and verification
+![Workout history in the app](assets/workout-history.png)
 
-In a previous app session, a user asked for their highest bench-press weight. The interface returned 70 kg and displayed supporting sets. This demonstrates a response in the app. The historical maximum has not been independently verified against the full dataset.
+![Question and final answer in the app](assets/question-answer.jpg)
 
-The coach prompt currently emphasizes first-versus-last workout comparisons. A useful acceptance check is therefore a peak in the middle workout:
+In the reviewed example, the highest working-set weight for machine chest press was **60 kg** on **25 April 2026**. The maximum in the latest completed session was **37.5 kg** on **20 May 2026**. The latest session contained sets at 35, 37.5 and 37.5 kg; the History row showed 35, so the underlying sets were checked rather than treating that row as the session maximum. Dates use Asia/Jerusalem.
 
-| Workout | Working-set weight | Reps |
-|---|---:|---:|
-| First | 50 kg | 8 |
-| Middle | 80 kg | 5 |
-| Last | 65 kg | 8 |
+An earlier AI answer included an unfinished workout and later confused exercises. Prompt changes alone did not reliably solve the numerical errors. The supported maximum-weight response now comes from code, with clarification requested for the tested ambiguous follow-up wording. Other free-form answers have not been comprehensively validated.
 
-Expected answer: **80 kg in the middle workout**. This is a proposed test with fictional data; its live execution remains pending.
+## Workflow reference and limitations
 
-## What I would improve next
+[Sanitized original workflow reference](coach-reference.json): this preserves the original structure, not the latest patched implementation. Credential references were removed and HTTP configurations replaced. It is a reference for the integration, not a ready-to-run deployment.
 
-- Verify user authorization before querying workouts using a supplied user ID.
-- Compute numerical aggregates deterministically, then ask the model to explain the result.
-- Validate the weekly export request shape and quote CSV fields containing commas.
-- Test the weekly CSV tool using a production endpoint in a configured test environment. The original export points to a webhook-test endpoint.
+The weekly CSV export is a separate component and was not used in the demonstrated question. Its end-to-end integration remains unverified. A proposed synthetic test with a middle-session peak has not been executed live.
 
-These follow-ups come from inspecting the exported workflow and are distinct from completed functionality.
+This is a documented portfolio project, not a maintained public service. Running it requires an n8n server, valid API keys and configured connections. User authorization at the webhook/database boundary and comprehensive response testing remain follow-up work.
